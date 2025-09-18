@@ -1,0 +1,31 @@
+{
+  "rules": [
+    {
+      "domain": "company.com",
+      "ou": "OU=Users,OU=IT,DC=company,DC=com",
+      "dc_host": "i-1234567890abcdef",
+      "netbios_domain": "COMPANY",
+      "conditions": {
+        "departments": ["IT", "Engineering", "DevOps"],
+        "keywords": ["tech", "developer", "engineer"]
+      }
+    },
+    {
+      "domain": "subsidiary.com",
+      "ou": "OU=Users,OU=Sales,DC=subsidiary,DC=com",
+      "dc_host": "i-0987654321fedcba",
+      "netbios_domain": "SUBSIDIARY",
+      "conditions": {
+        "departments": ["Sales", "Marketing"],
+        "locations": ["Remote", "Branch Office"],
+        "keywords": ["sales", "marketing"]
+      }
+    }
+  ],
+  "default": {
+    "domain": "company.com",
+    "ou": "OU=Users,DC=company,DC=com",
+    "dc_host": "i-1234567890abcdef",
+    "netbios_domain": "COMPANY"
+  }
+}
