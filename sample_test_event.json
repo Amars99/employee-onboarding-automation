@@ -1,0 +1,14 @@
+{
+  "Records": [
+    {
+      "Sns": {
+        "Type": "Notification",
+        "MessageId": "test-message-id",
+        "TopicArn": "arn:aws:sns:us-east-1:123456789012:employee-onboarding",
+        "Subject": "Employee Onboarding Request",
+        "Message": "{\"ticketKey\":\"TEST-001\",\"employeeData\":{\"fullName\":\"John Smith\",\"firstName\":\"John\",\"lastName\":\"Smith\",\"email\":\"john.smith@company.com\",\"jobTitle\":\"Software Engineer\",\"department\":\"Engineering\",\"company\":\"Tech Company\",\"manager\":\"Jane Doe\",\"workLocation\":\"Remote\",\"copyAccessFrom\":\"jane.doe@company.com\"}}",
+        "Timestamp": "2024-01-15T10:00:00.000Z"
+      }
+    }
+  ]
+}
