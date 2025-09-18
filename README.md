@@ -160,7 +160,7 @@ This project is provided as-is for educational purposes.
 
 **Amar Singh Thakur**
 - LinkedIn: https://www.linkedin.com/in/amar-singh4352/
-- GitHub: [@yourusername](https://github.com/yourusername)
+- GitHub: https://github.com/amars99
 
 ---
 
