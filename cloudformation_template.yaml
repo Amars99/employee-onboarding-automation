@@ -1,0 +1,153 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Employee Onboarding Automation Infrastructure'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+
+Resources:
+  # SNS Topic for triggering Lambda
+  OnboardingTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'employee-onboarding-${Environment}-trigger'
+      DisplayName: Employee Onboarding Trigger
+      KmsMasterKeyId: alias/aws/sns
+
+  # SQS Queue for delayed M365 processing
+  M365DelayQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'employee-onboarding-${Environment}-m365-delay'
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 86400
+      DelaySeconds: 0
+      KmsMasterKeyId: alias/aws/sqs
+
+  # Lambda Function
+  OnboardingFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'employee-onboarding-${Environment}-processor'
+      Runtime: python3.9
+      Handler: lambda_handler.lambda_handler
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {'statusCode': 200, 'body': json.dumps('Hello from Lambda!')}
+      Role: !GetAtt OnboardingLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          AD_CREDENTIALS_SECRET: !Sub 'employee-onboarding-${Environment}-ad-credentials'
+          JIRA_CREDENTIALS_SECRET: !Sub 'employee-onboarding-${Environment}-jira-credentials'
+          M365_CREDENTIALS_SECRET: !Sub 'employee-onboarding-${Environment}-m365-credentials'
+          ERROR_TOPIC_ARN: !Ref ErrorTopic
+          M365_DELAY_QUEUE_URL: !Ref M365DelayQueue
+          OU_MAPPING_SECRET: !Sub 'employee-onboarding-${Environment}-ou-mapping'
+          ENVIRONMENT: !Ref Environment
+
+  # Lambda Execution Role
+  OnboardingLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'employee-onboarding-${Environment}-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: OnboardingLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:employee-onboarding-${Environment}-*'
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt M365DelayQueue.Arn
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: '*'
+
+  # SNS Subscription
+  OnboardingTopicSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn: !Ref OnboardingTopic
+      Endpoint: !GetAtt OnboardingFunction.Arn
+
+  # Lambda Permission for SNS
+  OnboardingFunctionSNSPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref OnboardingFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref OnboardingTopic
+
+  # SQS Event Source Mapping
+  OnboardingFunctionSQSEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      EventSourceArn: !GetAtt M365DelayQueue.Arn
+      FunctionName: !GetAtt OnboardingFunction.Arn
+      Enabled: true
+
+  # Error Notification Topic
+  ErrorTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'employee-onboarding-${Environment}-errors'
+      DisplayName: Onboarding Error Notifications
+
+  # CloudWatch Log Group
+  OnboardingLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/employee-onboarding-${Environment}-processor'
+      RetentionInDays: 30
+
+Outputs:
+  SNSTopicArn:
+    Description: ARN of the SNS topic for Jira integration
+    Value: !Ref OnboardingTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-SNSTopicArn'
+  
+  SQSQueueURL:
+    Description: URL of the SQS queue for delayed processing
+    Value: !Ref M365DelayQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-SQSQueueURL'
+  
+  LambdaFunctionArn:
+    Description: ARN of the Lambda function
+    Value: !GetAtt OnboardingFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunctionArn'
