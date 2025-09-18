@@ -1,0 +1,13 @@
+# AWS SDK
+boto3==1.26.137
+botocore==1.29.137
+
+# HTTP requests
+requests==2.31.0
+urllib3==1.26.15
+
+# Date/Time handling
+python-dateutil==2.8.2
+
+# Type hints (for development)
+typing-extensions==4.5.0
